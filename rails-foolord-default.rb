@@ -1,4 +1,4 @@
-#create_file ".rvmrc", "rvm gemset use #{app_name}"
+create_file ".ruby-version", "1.9.3@#{app_name}"
 
 gem 'rails', '3.2.11'
 gem 'sqlite3', group: [:development, :test]
@@ -26,11 +26,20 @@ gem "figaro", ">= 0.5.0"
 gem "better_errors", ">= 0.3.2", :group => :development
 gem "binding_of_caller", ">= 0.6.8", :group => :development
 
+#FIXME: This does not appear to work in the RVM directory.
 run 'bundle install --without production'
 
+# create database
+append_to_file "db/seeds.rb" do
+  <<-eos
+#User.find_or_create_by_email :email => ENV['ADMIN_EMAIL'].dup, :password => ENV['ADMIN_PASSWORD'].dup, :password_confirmation => Time.now
+  eos
+end
 rake "db:create", :env => 'development'
 
 generate 'simple_form:install --bootstrap'
+
+# setup testing
 generate 'rspec:install'
 inject_into_file 'spec/spec_helper.rb', "\nrequire 'factory_girl'", :after => "require 'rspec/rails'"
 inject_into_file 'config/application.rb', :after => "config.filter_parameters += [:password]" do
@@ -38,15 +47,16 @@ inject_into_file 'config/application.rb', :after => "config.filter_parameters +=
     
     # Customize generators
     config.generators do |g|
-      g.stylesheets false
-      g.form_builder :simple_form
-      g.fixture_replacement :factory_girl, :dir => 'spec/factories'
+      g.test_framework :rspec, fixture: true
+      g.fixture_replacement :factory_girl
+      g.view_specs false
+      g.helper_specs false
     end
   eos
 end
 run "echo '--format documentation' >> .rspec"
 
-# FIXME: this does not generate the form, complaining of simple_form error.
+# FIXME: this does not generate the form properly (no inputs or fields)
 generate 'scaffold_controller', 'user'
 route "resources :users"
 
@@ -54,6 +64,48 @@ route "resources :users"
 generate "devise:install"
 generate "devise User"
 rake "db:migrate"
+
+# set up mailer
+inject_into_file 'config/environments/development.rb', after: "config.assets.debug = true" do
+  <<-eos
+
+  config.action_mailer.default_url_options = { :host => 'localhost:3000' }
+
+  ActionMailer::Base.smtp_settings = {
+    :address  => "smtp.gmail.com",
+    :port  => 587,
+    :authentication  => :plain,
+    :domain => ENV['GMAIL_SMTP_USER'],
+    :user_name  => ENV['GMAIL_SMTP_USER'],
+    :password  => ENV['GMAIL_SMTP_PASSWORD']
+  }
+  eos
+end
+inject_into_file 'config/environments/test.rb', after: "config.active_support.deprecation = :stderr" do
+  <<-eos
+  config.action_mailer.default_url_options = { :host => 'localhost:3000' }
+  eos
+end
+inject_into_file 'config/environments/production.rb', after: "config.active_support.deprecation = :notify" do
+  <<-eos
+
+  config.action_mailer.default_url_options = { :host => 'localhost:3000' }
+
+  ActionMailer::Base.smtp_settings = {
+    :address  => "smtp.gmail.com",
+    :port  => 587,
+    :authentication  => :plain,
+    :domain => ENV['GMAIL_SMTP_USER'],
+    :user_name  => ENV['GMAIL_SMTP_USER'],
+    :password  => ENV['GMAIL_SMTP_PASSWORD']
+  }
+  eos
+end
+
+
+# create home
+generate "controller", "home", "index"
+route "root to: 'home#index'"
 
 # clean up rails defaults
 remove_file 'public/index.html'
