@@ -57,7 +57,7 @@ end
 run "echo '--format documentation' >> .rspec"
 
 # FIXME: this does not generate the form properly (no inputs or fields)
-generate 'scaffold_controller', 'user'
+generate 'scaffold_controller', 'user', 'email:string', 'password:string'
 route "resources :users"
 
 # authentication and authorization setup
