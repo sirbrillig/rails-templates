@@ -59,12 +59,13 @@ inject_into_file 'config/application.rb', :after => "config.filter_parameters +=
     # Customize generators
     config.generators do |g|
       g.test_framework :rspec, fixture: true
-      g.fixture_replacement :factory_girl
+      g.fixture_replacement :factory_girl, dir: 'spec/factories'
       g.view_specs false
       g.helper_specs false
     end
   eos
 end
+remove_dir 'test'
 run "echo '--format documentation' >> .rspec"
 
 # bootstrap layout.
