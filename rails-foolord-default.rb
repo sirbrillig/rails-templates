@@ -1,3 +1,15 @@
+#
+# Generator for new rails apps.
+#
+# Created by payton.
+#
+
+module Thor::Actions
+  def source_paths
+    [File.dirname(__FILE__)]
+  end
+end
+
 create_file ".ruby-version", "1.9.3@#{app_name}"
 
 gem 'rails', '3.2.11'
@@ -26,7 +38,6 @@ gem "figaro", ">= 0.5.0"
 gem "better_errors", ">= 0.3.2", :group => :development
 gem "binding_of_caller", ">= 0.6.8", :group => :development
 
-#FIXME: This does not appear to work in the RVM directory.
 run 'bundle install --without production'
 
 # create database
@@ -56,7 +67,14 @@ inject_into_file 'config/application.rb', :after => "config.filter_parameters +=
 end
 run "echo '--format documentation' >> .rspec"
 
-# FIXME: this does not generate the form properly (no inputs or fields)
+# bootstrap layout.
+remove_dir 'app/views/layouts'
+directory 'lib/templates/haml/layouts', 'app/views/layouts'
+directory 'lib/assets/stylesheets', 'app/assets/stylesheets'
+
+# bootstrap scaffolding.
+remove_dir 'lib/templates/haml/scaffold'
+directory 'lib/templates/haml/scaffold'
 generate 'scaffold_controller', 'user', 'email:string', 'password:string'
 route "resources :users"
 
@@ -68,6 +86,7 @@ rake "db:migrate"
 # set up mailer
 inject_into_file 'config/environments/development.rb', after: "config.assets.debug = true" do
   <<-eos
+
 
   config.action_mailer.default_url_options = { :host => 'localhost:3000' }
 
@@ -83,12 +102,15 @@ inject_into_file 'config/environments/development.rb', after: "config.assets.deb
 end
 inject_into_file 'config/environments/test.rb', after: "config.active_support.deprecation = :stderr" do
   <<-eos
+
+
   config.action_mailer.default_url_options = { :host => 'localhost:3000' }
   eos
 end
 inject_into_file 'config/environments/production.rb', after: "config.active_support.deprecation = :notify" do
   <<-eos
 
+  # Configure mailer.
   config.action_mailer.default_url_options = { :host => 'localhost:3000' }
 
   ActionMailer::Base.smtp_settings = {
@@ -101,6 +123,16 @@ inject_into_file 'config/environments/production.rb', after: "config.active_supp
   }
   eos
 end
+create_file "config/application.yml" do
+  <<-eos
+SITE_TITLE: 'My Site'
+GMAIL_SMTP_USER:
+GMAIL_SMTP_PASSWORD:
+  eos
+end
+run 'cp config/application.yml config/application.example.yml'
+run "echo 'config/application.yml' >> .gitignore"
+say "Email is configured to use Gmail. Make sure to edit and configure config/application.yml"
 
 
 # create home
@@ -109,8 +141,8 @@ route "root to: 'home#index'"
 
 # clean up rails defaults
 remove_file 'public/index.html'
-remove_file 'rm public/images/rails.png'
-run 'cp config/database.yml config/database.example'
+remove_file 'public/images/rails.png'
+run 'cp config/database.yml config/database.example.yml'
 run "echo 'config/database.yml' >> .gitignore"
 
 # commit to git
@@ -121,4 +153,6 @@ git :commit => "-a -m 'create initial application'"
 say <<-eos
   ============================================================================
   Your new Rails application is ready to go.
+
+  Make sure to edit and configure config/application.yml for your mailer.
 eos
